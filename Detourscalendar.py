@@ -18,7 +18,9 @@ class DetourEvent:
         self.duration = event.duration.seconds/3600
         self.description = event.description
     def __repr__(self):
-        return "%s\t%s\t%s\t%s\t%s\t%s\t%s"%(self.guidename, self.tourname, self.date, self.begin, self.end, self.duration, self.description)
+        #return "%s\t%s\t%s\t%s\t%s\t%s\t%s"%(self.guidename, self.tourname, self.date, self.begin, self.end, self.duration, self.description)
+        return "%s\t%s\t%s\t%s\t%s\t%s"%(self.guidename, self.tourname, self.date, self.begin, self.end, self.duration)
+
 
 class DetourCalendar:
     def __init__(self):
@@ -26,10 +28,18 @@ class DetourCalendar:
         self.end_month = 1
         self.year = 2019
         self.window = tkinter.Toplevel()
-        self.window.title("detours")
+        self.window.iconify()
+        self.window.title("Detours")
+        self.buttonframe = tkinter.LabelFrame(self.window, text="Date Range")
+        self.submit = tkinter.Button(self.buttonframe, text="Submit", command=self.invoice)
+        self.submit.grid(row=0, column=0)
+        self.buttonframe.pack()
+        self.output = tkinter.Text(self.window, height=10, width=80)
+        self.output.pack()
         with askopenfile(filetypes=[("Calendar files", "*.ics")]) as input_file:
             icaltext = input_file.read()
             self.calendar = ics.Calendar(icaltext)
+        self.window.deiconify()
         
     def invoice(self):
         for month in range(self.begin_month, self.end_month + 1):
@@ -40,6 +50,5 @@ class DetourCalendar:
                 print(e)
     
 x = DetourCalendar()
-x.invoice()
+#x.invoice()
 tkinter.mainloop()
-
