@@ -32,14 +32,14 @@ class DetourCalendar:
         self.begin_month = 1
         self.end_month = 1
         self.year = 2019
+        with askopenfile(filetypes=[("Calendar files", "*.ics")]) as input_file:
+            icaltext = input_file.read()
+            self.calendar = ics.Calendar(icaltext)
         self.window = tkinter.Toplevel()
         self.window.title("Detours")
         self.buttonframe = tkinter.LabelFrame(self.window, text="Date Range")
-        self.months = tkinter.Menubutton(self.buttonframe, text="month")
-        monthmenu = tkinter.Menu(self.months, tearoff=0)
-        for month in months.keys():
-            monthmenu.add_command(label=month)
-        self.months["menu"] = monthmenu
+        self.monthvar = tkinter.StringVar(value="January")
+        self.months = tkinter.OptionMenu(self.buttonframe, self.monthvar, "January", "February")
         self.months.grid(row=0, column=0)
         self.submit = tkinter.Button(self.buttonframe, text="Submit", command=self.invoice)
         self.submit.grid(row=1, column=1)
@@ -49,9 +49,10 @@ class DetourCalendar:
         self.output = tkinter.Text(self.window, height=10, width=80, yscrollcommand=scrollbar.set)
         self.output.pack(expand=1, fill=tkinter.BOTH, padx=10)
         scrollbar.config(command=self.output.yview)
-        with askopenfile(filetypes=[("Calendar files", "*.ics")]) as input_file:
-            icaltext = input_file.read()
-            self.calendar = ics.Calendar(icaltext)
+        self.window.update()
+        self.window.iconify()
+        self.window.deiconify()
+       
         
     def invoice(self):
         self.output.delete("1.0", tkinter.END)
