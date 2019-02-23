@@ -1,70 +1,126 @@
-import ics
-import csv
-import tkinter
-from tkinter.filedialog import askopenfile
+from icalevents import icalevents
+from pytz import timezone
+from datetime import datetime
+import tkinter as tk
+import tkinter.ttk as ttk
+from tkinter.filedialog import askopenfilename
 
-months = {
-    "January":1,
-    "February":2,
-    "March":3}
+chi_time = timezone('US/Central')
+months = tuple(datetime(2000, n, 1).strftime('%B') for n in range(1,13))
+month_to_num = {months[n]:n + 1 for n in range(12)}
+now = datetime.now()
+bgcolor = '#ebebeb'
+# class Calendar:
+#     def __init__(self, ics_file):
+#         self.ics_file = ics_file
+
 
 class DetourEvent:
     def __init__(self, event):
-        parts = event.name.split("-")
+        self.start = event.start.astimezone(chi_time)
+        self.end = event.end.astimezone(chi_time)
+        self.duration = (event.end - event.start).seconds / 3600
+        parts = event.summary.split("-")
         if len(parts)<2:
-            self.guidename = "???"
-            self.tourname = event.name
+            guidename = "???"
+            self.tourname = event.summary
         else:
-            self.guidename = parts[1].strip()
+            guidename = parts[1].strip()
             self.tourname = parts[0].strip()
-        self.date = event.begin.date()
-        self.begin = event.begin.strftime("%I:%M%p")
-        self.end = event.end.strftime("%I:%M%p")
-        self.duration = event.duration.seconds/3600
-        self.description = event.description
-    def __repr__(self):
-        #return "%s\t%s\t%s\t%s\t%s\t%s\t%s"%(self.guidename, self.tourname, self.date, self.begin, self.end, self.duration, self.description)
-        return "%s\t%s\t%s\t%s\t%s\t%s"%(self.guidename, self.tourname, self.date, self.begin, self.end, self.duration)
+        self.guidename = guidename.replace('*', '')
+        self.description = event.description.split('-::~:~:')[0]
 
+    def __repr__(self):
+        #return "%s\t%s\t%s\t%s\t%s\t%s\t%s"%(self.guidename, self.tourname,
+        #self.date, self.begin, self.end, self.duration, self.description)
+        return "%s\t%s\t%s\t%s\t%s\t%s"%(
+            self.guidename,
+            self.tourname,
+            self.start.strftime('%F'),
+            self.start.strftime('%l:%M%p'),
+            self.end.strftime('%l:%M%p'),
+            self.duration)
 
 class DetourCalendar:
     def __init__(self):
         self.begin_month = 1
         self.end_month = 1
         self.year = 2019
-        with askopenfile(filetypes=[("Calendar files", "*.ics")]) as input_file:
-            icaltext = input_file.read()
-            self.calendar = ics.Calendar(icaltext)
-        self.window = tkinter.Toplevel()
+        self.ics_file = askopenfilename(filetypes=[("Calendar files", "*.ics")])
+        self.window = tk.Toplevel(bg=bgcolor)
         self.window.title("Detours")
-        self.buttonframe = tkinter.LabelFrame(self.window, text="Date Range")
-        self.monthvar = tkinter.StringVar(value="January")
-        self.months = tkinter.OptionMenu(self.buttonframe, self.monthvar, "January", "February")
-        self.months.grid(row=0, column=0)
-        self.submit = tkinter.Button(self.buttonframe, text="Submit", command=self.invoice)
-        self.submit.grid(row=1, column=1)
+        self.buttonframe = tk.LabelFrame(self.window, text="Date Range", bg=bgcolor)
+        tk.Label(self.buttonframe, text='Starting', bg=bgcolor).grid(row=0, column=0)
+        self.month = tk.StringVar(value=months[(now.month - 2)%12])
+        args = (self.buttonframe, self.month) + months
+        self.months = tk.OptionMenu(*args)
+        self.months.configure(width=7, bg=bgcolor)
+        self.months.grid(row=0, column=1, padx=4, pady=4)
+        self.year = tk.IntVar(value=now.year)
+        args = (self.buttonframe, self.year) + tuple(range(now.year, 2012, -1))
+        self.years = tk.OptionMenu(*args)
+        self.years.configure(width=3, bg=bgcolor)
+        self.years.grid(row=0, column=2, padx=4, pady=4)
+        tk.Label(self.buttonframe, text="for", bg=bgcolor).grid(row=0, column=3)
+        self.num_months = ttk.Spinbox(self.buttonframe, from_=1, to=120, width=2)
+        self.num_months.set(1)
+        self.num_months.grid(row=0, column=4, padx=4)
+        tk.Label(self.buttonframe, text="months", bg=bgcolor).grid(row=0, column=5)
+        self.submit = tk.Button(self.buttonframe, text="Submit",
+                          highlightbackground=bgcolor,command=self.invoice)
+        self.submit.grid(row=1, columnspan=6, pady=4)
         self.buttonframe.pack(pady=10)
-        scrollbar = tkinter.Scrollbar(self.window)
-        scrollbar.pack(side=tkinter.RIGHT, fill=tkinter.Y)
-        self.output = tkinter.Text(self.window, height=10, width=80, yscrollcommand=scrollbar.set)
-        self.output.pack(expand=1, fill=tkinter.BOTH, padx=10)
+        scrollbar = tk.Scrollbar(self.window)
+        self.output = tk.Text(self.window, yscrollcommand=scrollbar.set,
+                                       height=40, width=80)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y, expand=1)
+        self.output.pack(expand=1, fill=tk.BOTH, padx=4, pady=4)
         scrollbar.config(command=self.output.yview)
-        self.window.update()
-        self.window.iconify()
-        self.window.deiconify()
+        #self.window.update()
+        #self.window.iconify()
+        #self.window.deiconify()
        
-        
-    def invoice(self):
-        self.output.delete("1.0", tkinter.END)
-        for month in range(self.begin_month, self.end_month + 1):
-            events = [DetourEvent(e) for e in self.calendar.events
-                      if e.begin.month == month and e.begin.year == self.year]
-            events.sort(key = lambda e:(e.guidename, e.date))
-            for e in events:
-                self.output.insert(tkinter.END, str(e)+"\n")
+    def event_list(self, start_year, start_month, num_months):
+        start = datetime(start_year, start_month, 1, tzinfo=chi_time)
+        end_year = start_year + (num_months // 12)
+        end_month = start_month + (num_months % 12)
+        if end_month > 12:
+            end_month -= 12
+            end_year += 1
+        end = datetime(end_year, end_month, 1, tzinfo=chi_time)
+        tour_dict = {}
+        for event in icalevents.events(file=self.ics_file, start=start, end=end):
+            if event.all_day:
+                continue
+            id = (event.uid.split('@')[0], event.start)
+            if id not in tour_dict:
+                tour_dict[id] = event
+                continue
+            if tour_dict[id].recurring == event.recurring:
+                    raise RuntimeError("This should never happen!")
+            if not event.recurring:
+                tour_dict[id] = event
+        result = [DetourEvent(event) for event in tour_dict.values()] 
+        result.sort(key=lambda e :(e.guidename, e.start))
+        return result
 
-root = tkinter.Tk()
+    def invoice(self):
+        self.output.delete("1.0", tk.END)
+        for e in self.event_list(
+                self.year.get(),
+                month_to_num[self.month.get()],
+                int(self.num_months.get())):
+            self.output.insert(tk.END, str(e)+"\n")
+
+
+root = tk.Tk()
+menubar = tk.Menu(root)
+filemenu = tk.Menu(menubar)
+filemenu.add_command(label='Open ...', command=lambda : DetourCalendar())
+menubar.add_cascade(label='File', menu=filemenu)
+windowmenu = tk.Menu(menubar, name='window')
+menubar.add_cascade(label='Window', menu=windowmenu)
+root.configure(menu=menubar)
 root.withdraw()
-x = DetourCalendar()
-#x.invoice()
-tkinter.mainloop()
+DetourCalendar()
+tk.mainloop()    
