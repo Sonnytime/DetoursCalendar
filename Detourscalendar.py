@@ -28,7 +28,10 @@ class DetourEvent:
             guidename = parts[1].strip()
             self.tourname = parts[0].strip()
         self.guidename = guidename.replace('*', '')
-        self.description = event.description.split('-::~:~:')[0]
+        try:
+            self.description = event.description.split('-::~:~:')
+        except:
+            self.description = ''
 
     def __repr__(self):
         #return "%s\t%s\t%s\t%s\t%s\t%s\t%s"%(self.guidename, self.tourname,
